@@ -217,29 +217,46 @@ class Manager {
         .catch((err) => console.warn("[Sine]: Failed to load module script:", err));
 
       for (const [scriptPath, scriptOptions] of Object.entries(scripts)) {
-        if (scriptOptions.regex.test(process.location.href) && scriptPath.endsWith(".uc.js")) {
+        console.warn("DEBUGPRINT[79]: manager.sys.mjs:219: scriptOptions=", scriptOptions)
+        console.warn("DEBUGPRINT[71]: manager.sys.mjs:219: scriptPath=", scriptPath)
+        console.warn("DEBUGPRINT[77]: manager.sys.mjs:221: process.location.href=", process.location.href)
+        // console.warn("DEBUGPRINT[77]: manager.sys.mjs:221: scriptOptions.regex.test(process.location.href)=", scriptOptions.regex.test(process.location.href))
+        // if (scriptOptions.regex.test(process.location.href) && scriptPath.endsWith(".uc.js")) {
           const chromePath = `chrome://sine/content/${scriptPath}`;
+          console.warn("DEBUGPRINT[70]: manager.sys.mjs:221: chromePath=", chromePath)
 
           promises.push(
             (async () => {
               const scriptLoaded = await this.triggerUnloadListener(chromePath, process);
               if (scriptOptions.enabled && !scriptLoaded) {
                 try {
-                  this.addUnloadListener(chromePath, process, null);
-                  Services.scriptloader.loadSubScriptWithOptions(chromePath, {
-                    target: process,
-                    ignoreCache: true,
+                  const Cu = Components.utils;
+                  const sandbox = Cu.Sandbox(process, {
+                    sandboxPrototype: process,
+                    wantXrays: false,
                   });
+                  const file = Services.dirsvc.get("ProfD", Ci.nsIFile);
+                  file.append("chrome")
+                  file.append("sine-mods")
+                  for (const part of scriptPath.split("/")) {
+                    file.append(part);
+                  }
+                  const data = await IOUtils.readUTF8(file.path);
+                  // console.warn("DEBUGPRINT[80]: manager.sys.mjs:244: data=", data)
+                  Cu.evalInSandbox(data, sandbox);
                 } catch (err) {
+                  console.warn("DEBUGPRINT[78]: manager.sys.mjs:238: err=", err)
                   console.warn("[Sine]: Failed to load script:", err);
                 }
               }
             })()
           );
-        }
+        // }
       }
     }
+    console.warn("DEBUGPRINT[72]: manager.sys.mjs:244: promises=", promises)
     await Promise.all(promises);
+    console.warn("DEBUGPRINT[73]: manager.sys.mjs:245: promises=", promises)
   }
 
   /**
