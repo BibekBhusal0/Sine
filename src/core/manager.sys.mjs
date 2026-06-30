@@ -7,6 +7,7 @@
  */
 
 import utils from "./utils.sys.mjs";
+import sandbox from "./sandbox.sys.mjs";
 import * as domUtils from "../utils/dom.mjs";
 import ucAPI from "../utils/uc_api.sys.mjs";
 
@@ -210,7 +211,7 @@ class Manager {
     const processes = utils.getProcesses();
     const promises = [];
     for (const process of processes) {
-      this.appendInterfaceToDOM(process);
+      // this.appendInterfaceToDOM(process);
 
       ChromeUtils.compileScript("chrome://userscripts/content/services/module_loader.mjs")
         .then((script) => script.executeInGlobal(process))
@@ -222,25 +223,8 @@ class Manager {
 
           promises.push(
             (async () => {
-              const scriptLoaded = await this.triggerUnloadListener(chromePath, process);
-              if (scriptOptions.enabled && !scriptLoaded) {
-                try {
-                  const Cu = Components.utils;
-                  const sandbox = Cu.Sandbox(process, {
-                    sandboxPrototype: process,
-                    wantXrays: false,
-                  });
-                  const file = Services.dirsvc.get("ProfD", Ci.nsIFile);
-                  file.append("chrome")
-                  file.append("sine-mods")
-                  for (const part of scriptPath.split("/")) {
-                    file.append(part);
-                  }
-                  const data = await IOUtils.readUTF8(file.path);
-                  Cu.evalInSandbox(data, sandbox);
-                } catch (err) {
-                  console.warn("[Sine]: Failed to load script:", err);
-                }
+              if (scriptOptions.enabled ) {
+                sandbox.run_in_sandbox(chromePath, process, )
               }
             })()
           );
@@ -268,7 +252,6 @@ class Manager {
           href: window.location.href,
           onlyEnabled: true,
         });
-
         window.manager = this;
 
         this.appendInterfaceToDOM(window);
@@ -282,10 +265,7 @@ class Manager {
 
         for (const scriptPath of Object.keys(scripts)) {
           if (scriptPath.endsWith(".uc.js")) {
-            Services.scriptloader.loadSubScriptWithOptions(`chrome://sine/content/${scriptPath}`, {
-              target: window,
-              ignoreCache: true,
-            });
+            sandbox.run_in_sandbox(`chrome://sine/content/${scriptPath}`, window)
           }
         }
       });
